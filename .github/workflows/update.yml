@@ -1,0 +1,62 @@
+name: Update Bicep language server
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get latest release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          release="$(gh api repos/Azure/bicep/releases/latest)"
+          tag="$(jq -r '.tag_name' <<< "$release")"
+          version="${tag#v}"
+          url="$(jq -r '.assets[] | select(.name == "bicep-langserver.zip") | .browser_download_url' <<< "$release")"
+          test -n "$url"
+          test "$url" != "null"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Calculate SHA256
+        id: checksum
+        env:
+          URL: ${{ steps.release.outputs.url }}
+        run: |
+          curl --fail --location --retry 3 "$URL" --output bicep-langserver.zip
+          echo "sha256=$(sha256sum bicep-langserver.zip | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+
+      - name: Update formula
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          URL: ${{ steps.release.outputs.url }}
+          SHA256: ${{ steps.checksum.outputs.sha256 }}
+        run: |
+          ruby <<'RUBY'
+          path = "Formula/bicep-language-server.rb"
+          formula = File.read(path)
+          formula.sub!(/^\s*url\s+"[^"]+"/, %(  url "#{ENV.fetch("URL")}"))
+          formula.sub!(/^\s*version\s+"[^"]+"/, %(  version "#{ENV.fetch("VERSION")}")) if formula.match?(/^\s*version\s+"/)
+          formula.sub!(/^\s*sha256\s+"[0-9a-fA-F]+"/, %(  sha256 "#{ENV.fetch("SHA256")}"))
+          File.write(path, formula)
+          RUBY
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "Update Bicep language server to ${{ steps.release.outputs.version }}"
+          title: "Update Bicep language server to ${{ steps.release.outputs.version }}"
+          body: "Updates `bicep-language-server` to `${{ steps.release.outputs.tag }}`."
+          branch: update-bicep-language-server
+          delete-branch: true
