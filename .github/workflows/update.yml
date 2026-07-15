@@ -34,8 +34,8 @@ jobs:
         env:
           URL: ${{ steps.release.outputs.url }}
         run: |
-          curl --fail --location --retry 3 "$URL" --output bicep-langserver.zip
-          echo "sha256=$(sha256sum bicep-langserver.zip | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+          set -o pipefail
+          echo "sha256=$(curl --fail --location --retry 3 "$URL" | sha256sum | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
 
       - name: Update formula
         env:
