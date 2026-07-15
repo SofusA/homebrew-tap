@@ -10,9 +10,36 @@ class BicepLanguageServer < Formula
   def install
     libexec.install Dir["*"]
 
+    current_runtime =
+      if OS.mac?
+        Hardware::CPU.arm? ? "osx-arm64" : "osx-x64"
+      elsif Hardware::CPU.arm?
+        Hardware::CPU.is_64_bit? ? "linux-arm64" : "linux-arm"
+      else
+        "linux-x64"
+      end
+
+    architecture_specific_runtimes = %w[
+      linux-arm
+      linux-arm64
+      linux-x64
+      osx-arm64
+      osx-x64
+      win-arm64
+      win-x64
+      win-x86
+    ]
+
+    architecture_specific_runtimes.each do |runtime|
+      next if runtime == current_runtime
+
+      rm_r(libexec/"runtimes"/runtime) if (libexec/"runtimes"/runtime).exist?
+    end
+
     (bin/"bicep-language-server").write <<~SH
       #!/bin/bash
-      exec "#{formula_opt_bin("dotnet")}/dotnet" "#{libexec}/Bicep.LangServer.dll"
+      exec "#{formula_opt_bin("dotnet")}/dotnet" \
+        "#{libexec}/Bicep.LangServer.dll" "$@"
     SH
   end
 
