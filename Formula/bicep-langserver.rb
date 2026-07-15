@@ -1,4 +1,4 @@
-class BicepLanguageServer < Formula
+class BicepLangserver < Formula
   desc "Language server for the Bicep infrastructure-as-code language"
   homepage "https://github.com/Azure/bicep"
   url "https://github.com/Azure/bicep/releases/download/v0.45.15/bicep-langserver.zip"
@@ -36,7 +36,7 @@ class BicepLanguageServer < Formula
       rm_r(libexec/"runtimes"/runtime) if (libexec/"runtimes"/runtime).exist?
     end
 
-    (bin/"bicep-language-server").write <<~SH
+    (bin/"bicep-langserver").write <<~SH
       #!/bin/bash
       exec "#{formula_opt_bin("dotnet")}/dotnet" \
         "#{libexec}/Bicep.LangServer.dll" "$@"
@@ -45,9 +45,9 @@ class BicepLanguageServer < Formula
 
   test do
     assert_path_exists libexec/"Bicep.LangServer.dll"
-    assert_predicate bin/"bicep-language-server", :executable?
+    assert_predicate bin/"bicep-langserver", :executable?
 
-    launcher = (bin/"bicep-language-server").read
+    launcher = (bin/"bicep-langserver").read
     assert_match "Bicep.LangServer.dll", launcher
     assert_match formula_opt_bin("dotnet").to_s, launcher
   end
