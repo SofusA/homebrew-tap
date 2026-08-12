@@ -11,6 +11,6 @@ class Rssbook < Formula
   end
 
   test do
-    assert_match "text-wallpaper", shell_output("#{bin}/rssbook --help")
+    assert_match "rssbook", shell_output("#{bin}/rssbook --help")
   end
 end
