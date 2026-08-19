@@ -4,7 +4,12 @@ class Rssbook < Formula
   license "GPL-3.0"
   head "https://github.com/sofusa/rssbook.git", branch: "main"
 
+  depends_on "pkgconf" => :build
   depends_on "rust" => :build
+
+  on_linux do
+    depends_on "openssl@4"
+  end
 
   def install
     system "cargo", "install", *std_cargo_args
