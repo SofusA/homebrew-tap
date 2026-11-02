@@ -1,55 +1,39 @@
 class Mitos < Formula
-  desc "Fast and minimal selection-first modal text editor"
+  desc "Fast and minimal text editor"
   homepage "https://mitos.computer"
-  url "https://github.com/mitos-editor/mitos.git",
-      tag:      "v0.1.0"
+  url "https://github.com/mitos-editor/mitos/archive/refs/tags/v0.1.2.tar.gz"
+  sha256 "9ee73831c2a55e2100cbed31721f9275ca689cf8a7304d58c4c32ebe9473eab6"
   license "MPL-2.0"
+
   head "https://github.com/mitos-editor/mitos.git", branch: "main"
 
   depends_on "rust" => :build
 
+  deny_network_access!
+
+  def fetch
+    system "cargo", "fetch", *std_cargo_fetch_args
+    system "cargo", "run", "--locked", "--package", "grammar-build", "--bin", "grammar-fetch"
+  end
+
   def install
-    # Do not let the Rust build automatically fetch or compile grammars.
-    # We do that explicitly after building ms.
+    # Build the fetched grammars explicitly without trying to fetch them again.
     ENV["MITOS_DISABLE_AUTO_GRAMMAR_BUILD"] = "1"
+    ENV["CARGO_MANIFEST_DIR"] = buildpath/"crates/term"
 
-    system "cargo", "build",
-           "--release",
-           "--locked",
-           "--manifest-path", "crates/term/Cargo.toml"
-
-    # Fetch and compile the Tree-sitter grammars while the source tree and
-    # runtime/grammars/sources are still available.
-    system "target/release/ms", "--grammar", "fetch"
-    system "target/release/ms", "--grammar", "build", "--strict"
-
-    bin.install "target/release/ms"
-
-    # The grammar source repositories are not needed at runtime.
-    rm_r "runtime/grammars/sources" if (buildpath/"runtime/grammars/sources").exist?
-
+    system "cargo", "install", "-vv", *std_cargo_args(path: "crates/term")
+    system bin/"ms", "--grammar", "build", "--strict"
+    rm_r "runtime/grammars/sources/"
     libexec.install "runtime"
-
-    # Mitos needs themes, queries, dictionaries and compiled grammars at runtime.
-    bin.env_script_all_files(
-      libexec/"bin",
-      MITOS_RUNTIME: "${MITOS_RUNTIME:-#{libexec}/runtime}",
-    )
+    bin.env_script_all_files libexec/"bin", MITOS_RUNTIME: "${MITOS_RUNTIME:-#{libexec}/runtime}"
 
     bash_completion.install "contrib/completion/ms.bash" => "ms"
     fish_completion.install "contrib/completion/ms.fish"
     zsh_completion.install "contrib/completion/ms.zsh" => "_ms"
-
-    if OS.mac?
-      prefix.install "contrib/Mitos.desktop" if
-        (buildpath/"contrib/Mitos.desktop").exist?
-    else
-      (share/"applications").install "contrib/Mitos.desktop"
-    end
   end
 
   test do
-    assert_match "Mitos", shell_output("#{bin}/ms --version")
+    assert_match "Mitos terminal application", shell_output("#{bin}/ms --help")
     assert_match "✓", shell_output("#{bin}/ms --health")
   end
 end
